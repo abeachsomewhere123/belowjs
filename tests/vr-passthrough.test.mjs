@@ -1,4 +1,4 @@
-// VR passthrough-on-seabed logic. Run with: node --test tests/
+// VR passthrough-on-seabed logic. Run with: node --test tests/vr-passthrough.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
