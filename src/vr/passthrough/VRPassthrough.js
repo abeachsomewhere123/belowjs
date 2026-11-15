@@ -135,8 +135,10 @@ export class VRPassthrough {
   beforeRender() {
     if (!this.active) return;
 
-    const xrCamera = this.renderer.xr.getCamera();
-    xrCamera.getWorldPosition(this.backdrop.position);
+    // The camera in the rig, which three updates from the headset. The XR
+    // camera is only in room space until three renders, after this.
+    const eye = this.camera || this.renderer.xr.getCamera();
+    eye.getWorldPosition(this.backdrop.position);
     // BelowJS fits the far plane to each model, so keep the water just inside it.
     const far = this.camera?.far || this.options.backdropRadius * 2;
     this.backdrop.scale.setScalar(Math.min(far * 0.9, this.options.backdropRadius * 4) / this.options.backdropRadius);
