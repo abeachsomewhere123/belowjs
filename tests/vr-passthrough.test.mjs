@@ -135,6 +135,37 @@ test('with an eye height, you stand so your eyes are that far above the sand', (
   assert.ok(Math.abs(dolly.position.y - (pt._sandHeightAt(dolly.position.x, 12) + 2)) < 1e-6);
 });
 
+test('rising off the sand takes you up and you stay up', () => {
+  // VRLocomotion ramps its speed up and rounds the rig to the millimetre
+  // every frame. Lifting off must still work, and must not land you again
+  // the next frame.
+  const { scene, model, camera, dolly, renderer } = makeScene();
+  const pt = new VRPassthrough(renderer, scene, camera, () => [model], { eyeHeight: 2 });
+  pt.sessionStarted({ belowjsPassthrough: true, environmentBlendMode: 'alpha-blend' });
+  camera.position.y = 1.6;
+  const dt = 1 / 72;
+  let speed = 0;
+  const frame = (stick) => {
+    const moving = stick !== 0;
+    if (moving) dolly.position.y -= stick * speed * dt;
+    speed = Math.max(0, speed + ((moving ? 2 : 0) - speed) * 3 * dt);
+    dolly.position.y = Math.round(dolly.position.y * 1000) / 1000;
+    pt.update(dt);
+  };
+  dolly.position.set(10, 5, 12);
+  for (let i = 0; i < 1000 && !pt.landed; i++) frame(1);
+  assert.equal(pt.landed, true);
+  const standing = dolly.position.y;
+
+  let frames = 0;
+  while (pt.landed && frames < 360) { frame(-1); frames++; }
+  assert.equal(pt.landed, false, 'lifted off');
+  assert.ok(frames < 72, `within a second of pushing up (${frames} frames)`);
+  assert.ok(dolly.position.y > standing + 0.4, 'and actually higher');
+  for (let i = 0; i < 72; i++) frame(0);
+  assert.equal(pt.landed, false, 'still off the sand a second later');
+});
+
 test('a texture background is taken away for the frame and put back', () => {
   // three draws a texture background as an opaque box even in alpha-blend
   // sessions, which would cover the room.

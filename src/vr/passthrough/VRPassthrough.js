@@ -45,7 +45,7 @@ export class VRPassthrough {
     this.blend = 0;           // 0 = VR, 1 = room fully showing
     this.seabed = null;       // { a, b, c } for y = a·x + b·z + c
     this.seabedOverride = Number.isFinite(options.seabedHeight) ? options.seabedHeight : null;
-    this._lift = 0;
+    this._hover = 0;
     this._lastY = 0;
     this._standOff = 0;
     this._savedFog = null;
@@ -82,7 +82,7 @@ export class VRPassthrough {
     this.active = !!session && session.belowjsPassthrough === true && mode !== 'opaque';
     this.landed = false;
     this.blend = 0;
-    this._lift = 0;
+    this._hover = 0;
     this.refreshSeabed();
     this.backdrop.visible = this.active;
   }
@@ -105,25 +105,27 @@ export class VRPassthrough {
     const sand = this._sandHeightAt(dolly.position.x, dolly.position.z);
     if (sand !== null) {
       if (this.landed) {
-        // Walk on the sand. Only your own upward movement since last frame
-        // counts towards lifting off, not the sand sloping away under you;
-        // pushing down cancels it.
-        const rise = dolly.position.y - this._lastY;
-        if (rise > 0) this._lift += rise;
-        else if (rise < 0) this._lift = 0;
-        if (this._lift > this.options.liftHeight) {
+        // Walk on the sand, following it up and down. Rising with the
+        // controls lifts you off it for real: you hover up to liftHeight
+        // above your standing height, then leave the sand. Pushing down
+        // brings you back to standing. Changes smaller than a few mm are
+        // BelowJS rounding the rig position, not you.
+        let rise = dolly.position.y - this._lastY;
+        if (Math.abs(rise) < 0.003) rise = 0;
+        this._hover = Math.max(0, this._hover + rise);
+        if (this._hover > this.options.liftHeight) {
           this.landed = false;
-          this._lift = 0;
+          this._hover = 0;
           this.onChange?.(false);
         } else {
-          dolly.position.y = sand + this._standOff;
+          dolly.position.y = sand + this._standOff + this._hover;
           this._lastY = dolly.position.y;
         }
       } else {
         const standOff = this._standOffNow();
         if (dolly.position.y - sand <= standOff + this.options.landHeight) {
           this.landed = true;
-          this._lift = 0;
+          this._hover = 0;
           this._standOff = standOff;
           dolly.position.y = sand + standOff;
           this._lastY = dolly.position.y;
