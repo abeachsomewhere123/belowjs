@@ -189,6 +189,7 @@ export class BelowViewer extends EventSystem {
           passthroughOnSeabed: { type: 'boolean', default: false },
           passthroughLandHeight: { type: 'number', default: 0.15 },
           passthroughLiftHeight: { type: 'number', default: 0.4 },
+          passthroughEyeHeight: { type: 'number', default: null },
           seabedHeight: { type: 'number', default: null }
         }
       },
@@ -396,6 +397,7 @@ export class BelowViewer extends EventSystem {
         {
           landHeight: this.config.vr.passthroughLandHeight,
           liftHeight: this.config.vr.passthroughLiftHeight,
+          eyeHeight: this.config.vr.passthroughEyeHeight,
           seabedHeight: this.config.vr.seabedHeight
         }
       );

@@ -21,6 +21,7 @@ const DEFAULTS = {
   liftHeight: 0.4,    // rise this far off the sand to go back to VR (m)
   fadeSeconds: 0.6,   // backdrop and fog fade time
   sandBand: 0.5,      // local sand further than this from the fitted plane is ignored (m)
+  eyeHeight: null,    // eyes this far above the sand when landed (m); null = your own height
   backdropRadius: 500 // base size; scaled each frame to sit inside the far plane
 };
 
@@ -46,6 +47,7 @@ export class VRPassthrough {
     this.seabedOverride = Number.isFinite(options.seabedHeight) ? options.seabedHeight : null;
     this._lift = 0;
     this._lastY = 0;
+    this._standOff = 0;
     this._savedFog = null;
     this._modelKey = null;
 
@@ -114,15 +116,19 @@ export class VRPassthrough {
           this._lift = 0;
           this.onChange?.(false);
         } else {
-          dolly.position.y = sand;
-          this._lastY = sand;
+          dolly.position.y = sand + this._standOff;
+          this._lastY = dolly.position.y;
         }
-      } else if (dolly.position.y - sand <= this.options.landHeight) {
-        this.landed = true;
-        this._lift = 0;
-        dolly.position.y = sand;
-        this._lastY = sand;
-        this.onChange?.(true);
+      } else {
+        const standOff = this._standOffNow();
+        if (dolly.position.y - sand <= standOff + this.options.landHeight) {
+          this.landed = true;
+          this._lift = 0;
+          this._standOff = standOff;
+          dolly.position.y = sand + standOff;
+          this._lastY = dolly.position.y;
+          this.onChange?.(true);
+        }
       }
     }
 
@@ -226,6 +232,21 @@ export class VRPassthrough {
     mesh.raycast = () => {};
     mesh.visible = false;
     return mesh;
+  }
+
+  /**
+   * How far above the sand the rig stands when landed. With no eyeHeight it
+   * is 0: your real floor is the sand and you see from your own height. With
+   * eyeHeight, the rig is raised (or lowered) so your eyes are that far above
+   * the sand. It is measured from your head height as you land and then held,
+   * so crouching or standing up still moves you as it would.
+   */
+  _standOffNow() {
+    const eyeHeight = this.options.eyeHeight;
+    if (!Number.isFinite(eyeHeight)) return 0;
+    // The camera's position in the rig is the headset's in the room.
+    const head = THREE.MathUtils.clamp(this.camera?.position?.y || 0, 0, 2.5);
+    return eyeHeight - head;
   }
 
   _sandHeightAt(x, z) {

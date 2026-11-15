@@ -103,6 +103,38 @@ test('backdrop hides the room in VR; fog thins with the fade and is put back', (
   pt.afterRender();
 });
 
+test('with an eye height, you stand so your eyes are that far above the sand', () => {
+  const { scene, model, camera, dolly, renderer } = makeScene();
+  const pt = new VRPassthrough(renderer, scene, camera, () => [model], { eyeHeight: 2 });
+  pt.sessionStarted({ belowjsPassthrough: true, environmentBlendMode: 'alpha-blend' });
+  camera.position.y = 1.6;                 // standing: headset 1.6 m above the real floor
+  const sand = -4.5;                       // at x = 10
+
+  dolly.position.set(10, sand + 1.0, 12);  // eyes 2.6 m up: still swimming
+  pt.update(1 / 72);
+  assert.equal(pt.landed, false);
+
+  dolly.position.y = sand + 0.5;           // eyes 2.1 m up: lands
+  pt.update(1 / 72);
+  assert.equal(pt.landed, true);
+  const here = pt._sandHeightAt(10, 12);  // the scanned sand, close to -4.5
+  assert.ok(Math.abs(here - sand) < 0.05);
+  assert.ok(Math.abs(dolly.position.y + camera.position.y - (here + 2)) < 1e-6, 'eyes 2 m above the sand');
+
+  camera.position.y = 1.0;                 // crouch: the view drops with you
+  dolly.position.x = 10.5; pt.update(1 / 72);
+  assert.ok(Math.abs(dolly.position.y - (pt._sandHeightAt(10.5, 12) + 0.4)) < 1e-6, 'rig height held while walking');
+
+  dolly.position.y += 0.5; pt.update(1 / 72);
+  assert.equal(pt.landed, false, 'lifts off as before');
+
+  // A headset that reports no floor height (eyes at the room origin) still sees from 2 m.
+  camera.position.y = 0;
+  dolly.position.y = sand + 2.05; pt.update(1 / 72);
+  assert.equal(pt.landed, true);
+  assert.ok(Math.abs(dolly.position.y - (pt._sandHeightAt(dolly.position.x, 12) + 2)) < 1e-6);
+});
+
 test('a texture background is taken away for the frame and put back', () => {
   // three draws a texture background as an opaque box even in alpha-blend
   // sessions, which would cover the room.

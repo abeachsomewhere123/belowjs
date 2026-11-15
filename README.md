@@ -223,6 +223,7 @@ new ModelViewer('#container', {
       passthroughOnSeabed: true,
       passthroughLandHeight: 0.15, // within this of the sand (m) counts as landed
       passthroughLiftHeight: 0.4,  // rise this far (m) to go back to VR
+      passthroughEyeHeight: null,  // eyes this far above the sand (m) when landed; null = your own height
       seabedHeight: null           // or a fixed height; default fits it from the scan
     }
   }
@@ -230,6 +231,8 @@ new ModelViewer('#container', {
 ```
 
 The Enter VR button then starts an `immersive-ar` session where the headset supports one, and plain VR elsewhere. Until you land it looks the same as VR: BelowJS draws an opaque water backdrop that follows `scene.background`. The sand is found from the lowest points round the edge of the scan, so models should be at real scale with the sand roughly level. The viewer fires `vr-passthrough-change` with `{ passthrough }`, and `belowViewer.isVRPassthrough()` reports the current state, so pages can hide their own water effects while the room shows.
+
+By default your real floor becomes the sand, so you see the wreck from your own eye height. Set `passthroughEyeHeight` (for example `2`) to see from a fixed height above the sand instead, whatever your height or whether you are seated. The room's floor then sits that much higher or lower than the sand.
 
 ### 3D Tiles (Experimental)
 BelowJS can stream 3D Tiles datasets for large environments. Tilesets still require a `tileset.json` root plus streamed tile content hosted alongside it. Point a model at the `tileset.json` and set `type: 'tileset'`:
