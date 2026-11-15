@@ -103,6 +103,25 @@ test('backdrop hides the room in VR; fog thins with the fade and is put back', (
   pt.afterRender();
 });
 
+test('a texture background is taken away for the frame and put back', () => {
+  // three draws a texture background as an opaque box even in alpha-blend
+  // sessions, which would cover the room.
+  const { scene, model, camera, renderer } = makeScene();
+  const water = new THREE.Texture();
+  scene.background = water;
+  const pt = new VRPassthrough(renderer, scene, camera, () => [model]);
+  pt.sessionStarted({ belowjsPassthrough: true, environmentBlendMode: 'alpha-blend' });
+  pt.beforeRender();
+  assert.equal(scene.background, null, 'no background while rendering');
+  assert.equal(pt.backdrop.material.map, water, 'the backdrop shows the water instead');
+  pt.afterRender();
+  assert.equal(scene.background, water, 'background restored after the frame');
+
+  pt.sessionEnded();
+  pt.beforeRender(); pt.afterRender();
+  assert.equal(scene.background, water, 'left alone outside passthrough sessions');
+});
+
 test('ordinary VR and polyfilled sessions never show the room', () => {
   const { scene, model, camera, dolly, renderer } = makeScene();
   const pt = new VRPassthrough(renderer, scene, camera, () => [model]);

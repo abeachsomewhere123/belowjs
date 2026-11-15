@@ -162,6 +162,13 @@ export class VRPassthrough {
     material.opacity = 1 - this.blend;
     this.backdrop.visible = this.blend < 1;
 
+    // The backdrop stands in for the scene background. three still draws a
+    // texture background in an alpha-blend session (as an opaque box round
+    // the viewer) unless the headset is doing depth sensing, which would hide
+    // the room, so take it away for the frame.
+    this._savedBackground = background;
+    this.scene.background = null;
+
     // Fade the fog with the backdrop. Only its numbers change, so no shaders
     // recompile; the values are put back after the frame.
     const fog = this.scene.fog;
@@ -181,6 +188,10 @@ export class VRPassthrough {
   }
 
   afterRender() {
+    if (this._savedBackground !== undefined) {
+      if (this.scene.background === null) this.scene.background = this._savedBackground;
+      this._savedBackground = undefined;
+    }
     const saved = this._savedFog;
     if (!saved) return;
     if (saved.density !== undefined) saved.fog.density = saved.density;
