@@ -20,7 +20,7 @@ const DEFAULTS = {
   landHeight: 0.15,   // dolly within this of the sand counts as landed (m)
   liftHeight: 0.4,    // rise this far off the sand to go back to VR (m)
   fadeSeconds: 0.6,   // backdrop and fog fade time
-  sandBand: 0.75,     // local sand may differ from the fitted plane by this much (m)
+  sandBand: 0.5,      // local sand further than this from the fitted plane is ignored (m)
   backdropRadius: 500 // base size; scaled each frame to sit inside the far plane
 };
 
@@ -229,22 +229,22 @@ export class VRPassthrough {
     if (!grid) return plane;
 
     // Follow the scanned sand where there is some: the lowest point in each
-    // grid square, blended between squares, kept near the plane so a scour
-    // hole or a plate on the sand doesn't throw you up or down.
+    // grid square, blended between squares. A square whose lowest point is
+    // well off the plane is wreck, a scour hole or a gap, so it counts as the
+    // plane instead.
     const { lowest, N, minX, minZ, sx, sz } = grid;
     const fx = (x - minX) / sx - 0.5;
     const fz = (z - minZ) / sz - 0.5;
     const x0 = Math.floor(fx), z0 = Math.floor(fz);
     const tx = fx - x0, tz = fz - z0;
+    const band = this.options.sandBand;
     const at = (ix, iz) => {
       if (ix < 0 || iz < 0 || ix >= N || iz >= N) return plane;
       const y = lowest[iz * N + ix];
-      return y === Infinity ? plane : y;
+      return Math.abs(y - plane) > band ? plane : y;
     };
-    const y = (at(x0, z0) * (1 - tx) + at(x0 + 1, z0) * tx) * (1 - tz) +
-              (at(x0, z0 + 1) * (1 - tx) + at(x0 + 1, z0 + 1) * tx) * tz;
-    const band = this.options.sandBand;
-    return Math.min(plane + band, Math.max(plane - band, y));
+    return (at(x0, z0) * (1 - tx) + at(x0 + 1, z0) * tx) * (1 - tz) +
+           (at(x0, z0 + 1) * (1 - tx) + at(x0 + 1, z0 + 1) * tx) * tz;
   }
 }
 
