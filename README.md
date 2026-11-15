@@ -211,6 +211,26 @@ new ModelViewer(document.body, {
 
 Enable `enableScreenshot` to add a button that captures the scene without UI overlays.
 
+### Standing on the Seabed in Passthrough (Experimental)
+On headsets with passthrough (such as Quest 3), VR can show the real room while you stand on the sand, with the wreck around you at full scale. Rise off the sand and the water comes back:
+
+```javascript
+new ModelViewer('#container', {
+  models: { /* ... */ },
+  enableVR: true,
+  viewerConfig: {
+    vr: {
+      passthroughOnSeabed: true,
+      passthroughLandHeight: 0.15, // within this of the sand (m) counts as landed
+      passthroughLiftHeight: 0.4,  // rise this far (m) to go back to VR
+      seabedHeight: null           // or a fixed height; default fits it from the scan
+    }
+  }
+});
+```
+
+The Enter VR button then starts an `immersive-ar` session where the headset supports one, and plain VR elsewhere. Until you land it looks the same as VR: BelowJS draws an opaque water backdrop that follows `scene.background`. The sand is found from the lowest points round the edge of the scan, so models should be at real scale with the sand roughly level. The viewer fires `vr-passthrough-change` with `{ passthrough }`, and `belowViewer.isVRPassthrough()` reports the current state, so pages can hide their own water effects while the room shows.
+
 ### 3D Tiles (Experimental)
 BelowJS can stream 3D Tiles datasets for large environments. Tilesets still require a `tileset.json` root plus streamed tile content hosted alongside it. Point a model at the `tileset.json` and set `type: 'tileset'`:
 

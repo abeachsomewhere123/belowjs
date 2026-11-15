@@ -54,7 +54,7 @@ export class VRManager {
     this.enableAudio = enableAudio;
     this.container = container;
     
-    this.vrCore = new VRCore(renderer, camera, scene, container);
+    this.vrCore = new VRCore(renderer, camera, scene, container, options);
     this.vrControllers = new VRControllers(renderer, camera, options);
     this.vrTeleport = new VRTeleport(scene, camera);
     this.vrLocomotion = new VRLocomotion(camera, renderer);

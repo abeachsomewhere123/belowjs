@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Added `vr.passthroughOnSeabed` (experimental): on passthrough headsets, standing on the sand in VR shows the real room with the wreck at full scale around you, and rising off the sand returns to VR. Includes `vr.passthroughLandHeight`, `vr.passthroughLiftHeight`, `vr.seabedHeight`, the `vr-passthrough-change` event and `isVRPassthrough()`, `isVRPassthroughSession()` and `setSeabedHeight()` on `BelowViewer`.
 - Added `camera.setMaxDistance(n)` for adjusting the desktop orbit zoom-out limit from the console.
 - Added `loadAncestors` and `ktxWorkerLimit` tileset options for explicit refinement continuity and texture-transcoding control.
 - Added single-tab Quest route capture and replay tooling so real headset paths can be benchmarked without storing model data in the repository.

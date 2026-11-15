@@ -1070,6 +1070,16 @@ export class ModelViewer extends EventSystem {
       this.emit('vr-session-start', data);
       this.onVRSessionStart();
     });
+    // vr.passthroughOnSeabed: standing on the sand shows the room, so hide
+    // the dive particles there and bring them back on lifting off.
+    this.belowViewer.on('vr-passthrough-change', (data) => {
+      const particles = this.diveSystem?.particles;
+      if (particles) {
+        if (data?.passthrough) particles.disable();
+        else if (this.diveSystem.isDiveMode?.()) particles.enable();
+      }
+      this.emit('vr-passthrough-change', data);
+    });
     this.belowViewer.on('vr-session-end', (data) => {
       this.emit('vr-session-end', data);
       this.onVRSessionEnd();

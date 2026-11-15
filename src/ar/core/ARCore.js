@@ -159,6 +159,9 @@ export class ARCore {
 
   setupSessionListeners() {
     this.renderer.xr.addEventListener('sessionstart', () => {
+      // A VR session that only uses AR to show the room on the seabed
+      // (vr.passthroughOnSeabed) is VR, not the tabletop AR mode.
+      if (this.renderer.xr.getSession()?.belowjsPassthrough) return;
       this.isARPresenting = true;
       const deviceType = this.detectQuestDevice();
       this.applyQuestOptimizations(deviceType);
@@ -169,6 +172,7 @@ export class ARCore {
     });
 
     this.renderer.xr.addEventListener('sessionend', () => {
+      if (!this.isARPresenting) return;
       this.isARPresenting = false;
 
       if (this.onSessionEnd) {

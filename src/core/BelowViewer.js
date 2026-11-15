@@ -8,6 +8,7 @@ import { TilesetLoader } from '../models/TilesetLoader.js';
 import { disposeObject3D } from '../utils/ThreeCleanupUtils.js';
 import { VRManager } from './VRManager.js';
 import { ARManager } from './ARManager.js';
+import { VRPassthrough } from '../vr/passthrough/VRPassthrough.js';
 import { DebugCommands } from './DebugCommands.js';
 import { PerfMonitor } from '../utils/PerfMonitor.js';
 import { applyVRRenderProfileDefaults } from '../utils/VRPerformanceProfile.js';
@@ -184,7 +185,11 @@ export class BelowViewer extends EventSystem {
           performanceProfile: { type: 'string', default: 'auto' },
           foveation: { type: 'number', default: 1.0 },
           framebufferScaleFactor: { type: 'number', default: 1.0 },
-          shadowProfile: { type: 'string', default: 'reduced' }
+          shadowProfile: { type: 'string', default: 'reduced' },
+          passthroughOnSeabed: { type: 'boolean', default: false },
+          passthroughLandHeight: { type: 'number', default: 0.15 },
+          passthroughLiftHeight: { type: 'number', default: 0.4 },
+          seabedHeight: { type: 'number', default: null }
         }
       },
       ar: {
@@ -227,6 +232,7 @@ export class BelowViewer extends EventSystem {
     this.tilesetLoader = null;
     this.vrManager = null;
     this.arManager = null;
+    this.vrPassthrough = null;
     this.stereoCamera = null;
     this.perfMonitor = null;
 
@@ -379,6 +385,24 @@ export class BelowViewer extends EventSystem {
     // API change: audio disabled by default; must be explicitly enabled
     const enableAudio = this.config.enableVRAudio === true;
     this.vrManager = new VRManager(this.renderer, this.cameraManager.camera, this.sceneManager.scene, audioPath, enableAudio, this.container, this.config);
+
+    // vr.passthroughOnSeabed: show the real room while standing on the sand.
+    if (this.config.vr?.passthroughOnSeabed) {
+      this.vrPassthrough = new VRPassthrough(
+        this.renderer,
+        this.sceneManager.scene,
+        this.cameraManager.camera,
+        () => this.loadedModels.map(({ model }) => model),
+        {
+          landHeight: this.config.vr.passthroughLandHeight,
+          liftHeight: this.config.vr.passthroughLiftHeight,
+          seabedHeight: this.config.vr.seabedHeight
+        }
+      );
+      this.vrPassthrough.onChange = (passthrough) => {
+        this.emit('vr-passthrough-change', { passthrough });
+      };
+    }
     this.applyXRFramebufferScaleFactor();
     
 
@@ -420,6 +444,8 @@ export class BelowViewer extends EventSystem {
 
       this.applyVRRenderProfile();
 
+      this.vrPassthrough?.sessionStarted(this.renderer.xr.getSession());
+
       this.emit('vr-session-start');
     };
 
@@ -434,6 +460,8 @@ export class BelowViewer extends EventSystem {
       this.dolly.rotation.set(0, 0, 0);
 
       this.restoreDesktopRenderProfile();
+
+      this.vrPassthrough?.sessionEnded();
 
       this.emit('vr-session-end');
     };
@@ -941,6 +969,8 @@ export class BelowViewer extends EventSystem {
         this.vrManager.update(deltaTime);
       }
 
+      this.vrPassthrough?.update(deltaTime);
+
       if (this.arManager) {
         this.arManager.update(deltaTime * 1000);
       }
@@ -962,7 +992,9 @@ export class BelowViewer extends EventSystem {
             if (this.stereoEnabled && !isXRPresenting && this.stereoMode === 'sbs') {
               this.renderSbsStereo();
             } else {
+              this.vrPassthrough?.beforeRender();
               this.renderer.render(this.sceneManager.scene, this.cameraManager.camera);
+              this.vrPassthrough?.afterRender();
             }
           }
         };
@@ -1192,6 +1224,7 @@ export class BelowViewer extends EventSystem {
 
     this.tilesetLoader?.setCamera?.(camera);
     this.vrManager?.setCamera?.(camera);
+    this.vrPassthrough?.setCamera?.(camera);
     this.arManager?.setCamera?.(camera);
     this.diveSystem?.setCamera?.(camera);
 
@@ -1333,6 +1366,11 @@ export class BelowViewer extends EventSystem {
       this.vrManager = null;
     }
 
+    if (this.vrPassthrough) {
+      this.vrPassthrough.dispose();
+      this.vrPassthrough = null;
+    }
+
     if (this.arManager) {
       this.arManager.dispose();
       this.arManager = null;
@@ -1429,6 +1467,34 @@ export class BelowViewer extends EventSystem {
 
   isVRPresenting() {
     return this.vrManager ? this.vrManager.isVRPresenting : false;
+  }
+
+  /**
+   * True while a VR session with vr.passthroughOnSeabed is showing the real
+   * room because the viewer is standing on the sand.
+   * @returns {boolean}
+   */
+  isVRPassthrough() {
+    return this.vrPassthrough ? this.vrPassthrough.isPassthrough() : false;
+  }
+
+  /**
+   * True while the current VR session can show the room (an immersive-ar
+   * session started by the passthrough VR button), landed or not.
+   * @returns {boolean}
+   */
+  isVRPassthroughSession() {
+    return this.vrPassthrough ? this.vrPassthrough.active : false;
+  }
+
+  /**
+   * Set the height of the sand that counts as the seabed for
+   * vr.passthroughOnSeabed, or pass null to estimate it from the scan again.
+   * @param {number|null} y
+   */
+  setSeabedHeight(y) {
+    this.vrPassthrough?.setSeabedHeight(y);
+    if (y === null) this.vrPassthrough?.refreshSeabed();
   }
 
   getVRManager() {

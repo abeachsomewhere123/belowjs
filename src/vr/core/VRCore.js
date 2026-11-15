@@ -8,11 +8,14 @@
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 
 export class VRCore {
-  constructor(renderer, camera, scene, container = null) {
+  constructor(renderer, camera, scene, container = null, options = {}) {
     this.renderer = renderer;
     this.camera = camera;
     this.scene = scene;
     this.container = container || document.body;
+    // vr.passthroughOnSeabed: start VR as an immersive-ar session where the
+    // headset supports it, so the room can show through on the seabed.
+    this.passthroughOnSeabed = options?.vr?.passthroughOnSeabed === true;
     
 
     this.isVRSupported = false;
@@ -104,11 +107,14 @@ export class VRCore {
   createVRButton() {
     try {
 
-      this.waitForVRCSS().then(() => {
+      this.waitForVRCSS().then(async () => {
         const sessionInit = {
           optionalFeatures: this.getOptionalFeatures()
         };
-        this.vrButton = VRButton.createButton(this.renderer, sessionInit);
+        const passthrough = this.passthroughOnSeabed && await this.supportsPassthrough();
+        this.vrButton = passthrough
+          ? this.createPassthroughVRButton(sessionInit)
+          : VRButton.createButton(this.renderer, sessionInit);
         this.vrButton.innerHTML = '<span class="vr-icon">🥽</span>ENTER VR';
         this.vrButton.className = 'vr-button--glass vr-button-available';
         this.vrButton.disabled = false;
@@ -130,6 +136,56 @@ export class VRCore {
     } catch (error) {
       console.error('❌ VR button creation failed:', error);
     }
+  }
+
+  async supportsPassthrough() {
+    try {
+      return !!navigator.xr && !this.isPolyfilledXR() && await navigator.xr.isSessionSupported('immersive-ar');
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * An "Enter VR" button that starts an immersive-ar session. It looks and
+   * behaves like VR (BelowJS draws an opaque water backdrop) until the viewer
+   * stands on the seabed, when the room shows through. Same id as three's
+   * VRButton so pages that click it still work.
+   */
+  createPassthroughVRButton(sessionInit) {
+    const button = document.createElement('button');
+    button.id = 'VRButton';
+    let currentSession = null;
+
+    const onSessionEnded = () => {
+      currentSession.removeEventListener('end', onSessionEnded);
+      currentSession = null;
+    };
+
+    button.onclick = async () => {
+      if (currentSession) {
+        currentSession.end();
+        return;
+      }
+      try {
+        const session = await navigator.xr.requestSession('immersive-ar', sessionInit);
+        session.belowjsPassthrough = true;
+        session.addEventListener('end', onSessionEnded);
+        currentSession = session;
+        await this.renderer.xr.setSession(session);
+      } catch (error) {
+        console.warn('Passthrough VR session failed, falling back to VR:', error);
+        try {
+          const session = await navigator.xr.requestSession('immersive-vr', sessionInit);
+          session.addEventListener('end', onSessionEnded);
+          currentSession = session;
+          await this.renderer.xr.setSession(session);
+        } catch (vrError) {
+          console.error('VR session failed:', vrError);
+        }
+      }
+    };
+    return button;
   }
 
   getOptionalFeatures() {
