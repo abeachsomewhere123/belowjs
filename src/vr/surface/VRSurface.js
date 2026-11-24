@@ -461,20 +461,22 @@ export function makeDiveBoat() {
   for (const s of [-1, 1]) for (const x of [-2.9, -1.3]) bar([x, 1.0, s * 1.35], [x, 2.9, s * 1.35], 0.04, '#c8ccd0');
   // Radar dome, mast with the dive flags.
   add(new THREE.SphereGeometry(0.32, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.55, 1).translate(1.6, 3.01, 0), '#f6f6f6');
-  bar([0.6, 3.0, 0], [0.6, 5.0, 0], 0.035, '#c8ccd0');
-  // Code flag A (diver down, keep clear): white at the hoist, blue swallowtail.
+  bar([0.6, 3.0, 0], [0.6, 5.3, 0], 0.035, '#c8ccd0');
+  // The dive flag: International Code flag A ("I have a diver down; keep well
+  // clear at slow speed"), white at the hoist, blue with a swallowtail at the
+  // fly, flown as a rigid board so it shows in still air. Both faces.
   {
-    const w = 0.6, h = 0.42, y = 4.75, x = 0.62;
-    add(new THREE.PlaneGeometry(w / 2, h).translate(x + w / 4, y, 0), '#ffffff', { lit: false });
-    const s = new THREE.Shape(); s.moveTo(0, -h / 2); s.lineTo(w / 2, -h / 2); s.lineTo(w / 2 - 0.12, 0); s.lineTo(w / 2, h / 2); s.lineTo(0, h / 2);
-    add(new THREE.ShapeGeometry(s).translate(x + w / 2, y, 0.001), '#1f4fb3', { lit: false });
-  }
-  // Diver-down flag (red with a white diagonal) lower on the mast.
-  {
-    const x = 0.62, y = 4.2, w = 0.5, h = 0.36;
-    add(new THREE.PlaneGeometry(w, h).translate(x + w / 2, y, 0), '#d41f1f', { lit: false });
-    const d = new THREE.PlaneGeometry(Math.hypot(w, h), 0.08).rotateZ(-Math.atan2(h, w)).translate(x + w / 2, y, 0.002);
-    add(d, '#ffffff', { lit: false });
+    const w = 1.0, h = 0.75, y = 4.85, x = 0.64, notch = 0.25;
+    for (const side of [1, -1]) {
+      const z = side * 0.004;
+      const white = new THREE.PlaneGeometry(w / 2, h).translate(x + w / 4, y, z);
+      const s2 = new THREE.Shape();
+      s2.moveTo(0, -h / 2); s2.lineTo(w / 2, -h / 2); s2.lineTo(w / 2 - notch, 0); s2.lineTo(w / 2, h / 2); s2.lineTo(0, h / 2); s2.closePath();
+      const blue = new THREE.ShapeGeometry(s2).translate(x + w / 2, y, z);
+      if (side < 0) { white.scale(1, 1, -1); blue.scale(1, 1, -1); }
+      add(white, '#ffffff', { lit: false });
+      add(blue, '#1546a8', { lit: false });
+    }
   }
   // Cylinders racked along both sides of the back deck, valves up.
   for (const s of [-1, 1]) {
