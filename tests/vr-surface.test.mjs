@@ -17,8 +17,8 @@ function makeScene({ presenting = true, mode = 'immersive-vr' } = {}) {
   const snow = new THREE.Points(new THREE.BufferGeometry()); scene.add(snow);
   const camera = new THREE.PerspectiveCamera(70, 1, 0.1, 1000);
   const dolly = new THREE.Group(); dolly.add(camera); scene.add(dolly);
-  const xrCamera = new THREE.PerspectiveCamera(); xrCamera.position.set(0, 1.6, 0);
-  const renderer = { xr: { isPresenting: presenting, getSession: () => ({ mode }), getCamera: () => xrCamera } };
+  camera.position.set(0, 1.6, 0);   // the headset pose, relative to the dolly, as three.js leaves it
+  const renderer = { xr: { isPresenting: presenting, getSession: () => ({ mode }) } };
   return { scene, model, camera, dolly, renderer, snow };
 }
 

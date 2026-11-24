@@ -87,12 +87,14 @@ export class VRSurface {
   /** True while a VR viewer's head is above the surface. */
   isAboveSurface() { return this.above; }
 
-  /** World height of the viewer's eyes (the XR camera inside the dolly). */
+  /**
+   * World height of the viewer's eyes. In VR, three.js copies the headset
+   * pose into the camera each frame relative to its parent (the dolly), so
+   * the dolly's transform applied to that gives the eyes in the world.
+   */
   headHeight() {
     const rig = this.camera.parent;
-    const xrCam = this.renderer.xr?.getCamera?.();
-    const local = xrCam && this.renderer.xr?.isPresenting ? xrCam.position : this.camera.position;
-    this._head.copy(local);
+    this._head.copy(this.camera.position);
     if (rig) { rig.updateMatrixWorld(true); this._head.applyMatrix4(rig.matrixWorld); }
     return this._head.y;
   }
