@@ -194,7 +194,7 @@ export class VRSurface {
       this.boat.updateMatrixWorld(true);
     }
     if (this.line && this._lineBottom) {
-      const top = this.boat ? this.boat.localToWorld(new THREE.Vector3(5.2, 0.1, 0)) : this.water.position.clone();
+      const top = this.boat ? this.boat.localToWorld(new THREE.Vector3(5.1, 0.85, 0)) : this.water.position.clone();   // the bow cleat
       const d = top.clone().sub(this._lineBottom);
       this.line.position.copy(this._lineBottom);
       this.line.scale.set(1, d.length(), 1);
@@ -370,6 +370,8 @@ function makeSky(radius) {
   return mesh;
 }
 
+const WATERLINE_DROP = 0.36;   // the hull is drawn with y = 0 at the keel's midships rise; this sets it on its marks
+
 // ── A generic dive boat ────────────────────────────────────────────────
 // About 11 m: a white planing hull with a blue boot stripe and red
 // antifouling, a wheelhouse with a hard top, dive ladder and swim platform
@@ -382,7 +384,7 @@ export function makeDiveBoat() {
     geo.computeVertexNormals();
     const n = geo.attributes.normal, c = new THREE.Color(colour), out = new Float32Array(n.count * 3);
     for (let i = 0; i < n.count; i++) {
-      const lambert = lit ? 0.45 + 0.55 * Math.max(0, n.getX(i) * SUN_DIR.x + n.getY(i) * SUN_DIR.y + n.getZ(i) * SUN_DIR.z) + 0.1 * Math.max(0, n.getY(i)) : 1;
+      const lambert = lit ? 0.66 + 0.4 * Math.max(0, n.getX(i) * SUN_DIR.x + n.getY(i) * SUN_DIR.y + n.getZ(i) * SUN_DIR.z) + 0.08 * Math.max(0, n.getY(i)) : 1;
       out[i * 3] = c.r * lambert; out[i * 3 + 1] = c.g * lambert; out[i * 3 + 2] = c.b * lambert;
     }
     geo.setAttribute('color', new THREE.BufferAttribute(out, 3));
@@ -495,6 +497,8 @@ export function makeDiveBoat() {
   box(0.3, 0.08, 0.1, 5.1, sheer(5.1) - 0.18, 0, '#c8ccd0');
 
   const merged = mergeParts(parts);
+  // Down to her marks: antifouling under the water, the boot stripe just above it.
+  merged.translate(0, -WATERLINE_DROP, 0);
   const mesh = new THREE.Mesh(merged, new THREE.MeshBasicMaterial({ vertexColors: true, fog: true, side: THREE.DoubleSide }));
   mesh.name = 'belowjs-dive-boat';
   mesh.raycast = () => {};
