@@ -9,6 +9,7 @@ import { disposeObject3D } from '../utils/ThreeCleanupUtils.js';
 import { VRManager } from './VRManager.js';
 import { ARManager } from './ARManager.js';
 import { VRPassthrough } from '../vr/passthrough/VRPassthrough.js';
+import { VRSurface } from '../vr/surface/VRSurface.js';
 import { DebugCommands } from './DebugCommands.js';
 import { PerfMonitor } from '../utils/PerfMonitor.js';
 import { applyVRRenderProfileDefaults } from '../utils/VRPerformanceProfile.js';
@@ -190,7 +191,9 @@ export class BelowViewer extends EventSystem {
           passthroughLandHeight: { type: 'number', default: 0.15 },
           passthroughLiftHeight: { type: 'number', default: 0.4 },
           passthroughEyeHeight: { type: 'number', default: null },
-          seabedHeight: { type: 'number', default: null }
+          seabedHeight: { type: 'number', default: null },
+          surfaceDepth: { type: 'number', default: null },
+          surfaceBoat: { type: 'boolean', default: true }
         }
       },
       ar: {
@@ -234,6 +237,7 @@ export class BelowViewer extends EventSystem {
     this.vrManager = null;
     this.arManager = null;
     this.vrPassthrough = null;
+    this.vrSurface = null;
     this.stereoCamera = null;
     this.perfMonitor = null;
 
@@ -405,6 +409,22 @@ export class BelowViewer extends EventSystem {
         this.emit('vr-passthrough-change', { passthrough });
       };
     }
+    // vr.surfaceDepth: swim all the way up in VR and the sea surface and a
+    // dive boat are there. Off until a depth is given (config or setSurfaceDepth).
+    this.vrSurface = new VRSurface(
+      this.renderer,
+      this.sceneManager.scene,
+      this.cameraManager.camera,
+      () => this.loadedModels.map(({ model }) => model),
+      {
+        depth: this.config.vr?.surfaceDepth,
+        boat: this.config.vr?.surfaceBoat,
+        seabedHeight: this.config.vr?.seabedHeight
+      }
+    );
+    this.vrSurface.onChange = (above) => {
+      this.emit('vr-surface-change', { above });
+    };
     this.applyXRFramebufferScaleFactor();
     
 
@@ -464,6 +484,7 @@ export class BelowViewer extends EventSystem {
       this.restoreDesktopRenderProfile();
 
       this.vrPassthrough?.sessionEnded();
+      this.vrSurface?.sessionEnded();
 
       this.emit('vr-session-end');
     };
@@ -972,6 +993,7 @@ export class BelowViewer extends EventSystem {
       }
 
       this.vrPassthrough?.update(deltaTime);
+      this.vrSurface?.update(deltaTime);
 
       if (this.arManager) {
         this.arManager.update(deltaTime * 1000);
@@ -995,7 +1017,9 @@ export class BelowViewer extends EventSystem {
               this.renderSbsStereo();
             } else {
               this.vrPassthrough?.beforeRender();
+              this.vrSurface?.beforeRender();
               this.renderer.render(this.sceneManager.scene, this.cameraManager.camera);
+              this.vrSurface?.afterRender();
               this.vrPassthrough?.afterRender();
             }
           }
@@ -1227,6 +1251,7 @@ export class BelowViewer extends EventSystem {
     this.tilesetLoader?.setCamera?.(camera);
     this.vrManager?.setCamera?.(camera);
     this.vrPassthrough?.setCamera?.(camera);
+    this.vrSurface?.setCamera?.(camera);
     this.arManager?.setCamera?.(camera);
     this.diveSystem?.setCamera?.(camera);
 
@@ -1368,6 +1393,10 @@ export class BelowViewer extends EventSystem {
       this.vrManager = null;
     }
 
+    if (this.vrSurface) {
+      this.vrSurface.dispose();
+      this.vrSurface = null;
+    }
     if (this.vrPassthrough) {
       this.vrPassthrough.dispose();
       this.vrPassthrough = null;
@@ -1497,6 +1526,27 @@ export class BelowViewer extends EventSystem {
   setSeabedHeight(y) {
     this.vrPassthrough?.setSeabedHeight(y);
     if (y === null) this.vrPassthrough?.refreshSeabed();
+    if (this.vrSurface) {
+      this.vrSurface.options.seabedHeight = Number.isFinite(y) ? y : null;
+      this.vrSurface.refresh();
+    }
+  }
+
+  /**
+   * Turn on the VR sea surface and dive boat (vr.surfaceDepth): the seabed is
+   * this many metres down. Pass null to turn it off.
+   * @param {number|null} depth
+   */
+  setSurfaceDepth(depth) {
+    this.vrSurface?.setDepth(depth);
+  }
+
+  /**
+   * True while a VR viewer has swum up through the surface (vr.surfaceDepth).
+   * @returns {boolean}
+   */
+  isAboveSurface() {
+    return this.vrSurface ? this.vrSurface.isAboveSurface() : false;
   }
 
   getVRManager() {
